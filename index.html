@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YOLOv5 Object Detection</title>
+    <style>
+        #video-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        #video-element {
+            width: 640px;
+            height: 480px;
+        }
+        #file-input {
+            margin: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>YOLOv5 Object Detection</h1>
+    <div>
+        <label for="file-input">Upload Video</label>
+        <input type="file" id="file-input" accept="video/*">
+    </div>
+
+    <div id="video-container">
+        <video id="video-element" controls autoplay></video>
+    </div>
+
+    <script>
+        const fileInput = document.getElementById('file-input');
+        const videoElement = document.getElementById('video-element');
+
+        fileInput.addEventListener('change', async (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                const formData = new FormData();
+                formData.append("file", file);
+
+                try {
+                    const response = await fetch('http://127.0.0.1:8000/upload_video/', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    if (!response.ok) {
+                        alert("Error processing video: " + response.statusText);
+                        return;
+                    }
+
+                    // Create a ReadableStream from the response
+                    const reader = response.body.getReader();
+                    const stream = new ReadableStream({
+                        start(controller) {
+                            function push() {
+                                reader.read().then(({ done, value }) => {
+                                    if (done) {
+                                        controller.close();
+                                        return;
+                                    }
+                                    controller.enqueue(value);
+                                    push();
+                                });
+                            }
+                            push();
+                        }
+                    });
+
+                    // Convert the ReadableStream into a Blob, then a URL
+                    const videoBlob = new Blob([stream], { type: 'video/mp4' });
+                    const videoURL = URL.createObjectURL(videoBlob);
+                    videoElement.src = videoURL;
+                } catch (error) {
+                    console.error("Error:", error);
+                    alert("Error during video processing: " + error.message);
+                }
+            }
+        });
+    </script>
+</body>
+</html>
